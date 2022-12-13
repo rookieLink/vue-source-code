@@ -12,7 +12,6 @@
     "allowJs": true,
     "noImplicitAny": false,
     "noImplicitThis": false,
-
     "noUnusedLocals": true,
     "experimentalDecorators": true,
     "resolveJsonModule": true,
