@@ -51,16 +51,23 @@ export default class Watcher {
     isRenderWatcher?: boolean
   ) {
     this.vm = vm
+    // 如果是渲染watcher,直接将watcher对象挂载到实例的_watcher
     if (isRenderWatcher) {
       vm._watcher = this
     }
+    // 将当前wathcer对象放到示例的_watchers数组中
     vm._watchers.push(this)
     // options
     if (options) {
+      // 是否是深度监听
       this.deep = !!options.deep
+      // 是否是用户自定义watcher
       this.user = !!options.user
+      // ToConfirm 待确认lazy是从何处来，用来干什么
       this.lazy = !!options.lazy
+      // ToConfirm 待确认sync是从何处来，用来干什么
       this.sync = !!options.sync
+      // ToConfirm 待确认before是从何处来，用来干什么
       this.before = options.before
     } else {
       this.deep = this.user = this.lazy = this.sync = false

@@ -1,6 +1,6 @@
 /*!
  * Vue.js v2.6.14
- * (c) 2014-2021 Evan You
+ * (c) 2014-2022 Evan You
  * Released under the MIT License.
  */
 (function (global, factory) {
@@ -46,7 +46,7 @@
 
   /**
    * Quick object check - this is primarily used to tell
-   * Objects from primitive values when we know the value
+   * objects from primitive values when we know the value
    * is a JSON-compliant type.
    */
   function isObject (obj) {
@@ -4440,16 +4440,23 @@
     isRenderWatcher
   ) {
     this.vm = vm;
+    // 如果是渲染watcher,直接将watcher对象挂载到实例的_watcher
     if (isRenderWatcher) {
       vm._watcher = this;
     }
+    // 将当前wathcer对象放到示例的_watchers数组中
     vm._watchers.push(this);
     // options
     if (options) {
+      // 是否是深度监听
       this.deep = !!options.deep;
+      // 是否是用户自定义watcher
       this.user = !!options.user;
+      // ToConfirm 待确认lazy是从何处来，用来干什么
       this.lazy = !!options.lazy;
+      // ToConfirm 待确认sync是从何处来，用来干什么
       this.sync = !!options.sync;
+      // ToConfirm 待确认before是从何处来，用来干什么
       this.before = options.before;
     } else {
       this.deep = this.user = this.lazy = this.sync = false;
@@ -4644,10 +4651,13 @@
     };
     Object.defineProperty(target, key, sharedPropertyDefinition);
   }
-
+  // 初始化状态，当component创建时调用此方法
   function initState (vm) {
+    // 设置当前实例的watcher列表
     vm._watchers = [];
+    // 拿取挂载在实例上的属性
     var opts = vm.$options;
+    // 依次初始化props、methods、data、computed、watch
     if (opts.props) { initProps(vm, opts.props); }
     if (opts.methods) { initMethods(vm, opts.methods); }
     if (opts.data) {
@@ -4660,7 +4670,7 @@
       initWatch(vm, opts.watch);
     }
   }
-
+  // 初始化props
   function initProps (vm, propsOptions) {
     var propsData = vm.$options.propsData || {};
     var props = vm._props = {};
@@ -4709,6 +4719,7 @@
     toggleObserving(true);
   }
 
+  // 初始化data
   function initData (vm) {
     var data = vm.$options.data;
     data = vm._data = typeof data === 'function'
@@ -4907,16 +4918,24 @@
     handler,
     options
   ) {
+
+    // 下面的操作是保证handler是函数，并且获取自定义options
+    // 如果handler是普通对象，{handler() {}, immediateL true}这种，直接给
+    // options赋值当前对象，给handler赋值handler处理方法
     if (isPlainObject(handler)) {
       options = handler;
       handler = handler.handler;
     }
+    // 如果handler是一个字符串（代表从vm获取属性作为handler watch: { name: 'nameChange' }）, 
+    // 从vm上取该属性,可以是methods中的属性，也可以是computed的属性
     if (typeof handler === 'string') {
       handler = vm[handler];
     }
+    // 执行初始化Vue时挂载在Vue的$watch，通过vm调用$watch，使得this指向vm自身
     return vm.$watch(expOrFn, handler, options)
   }
 
+  // 这是Vue初始化的时候执行的操作
   function stateMixin (Vue) {
     // flow somehow has problems with directly declared definition object
     // when using Object.defineProperty, so we have to procedurally build up
@@ -4937,28 +4956,43 @@
         warn("$props is readonly.", this);
       };
     }
+
+    // 在Vue原型上定义两个属性$data、$props，用于获取Vue的data和props
     Object.defineProperty(Vue.prototype, '$data', dataDef);
     Object.defineProperty(Vue.prototype, '$props', propsDef);
 
+    // 给Vue挂载$set、$delete方法，触发响应式数据的行为
     Vue.prototype.$set = set;
     Vue.prototype.$delete = del;
 
+    // 给Vue挂载$watch,用于监听数据变更,并且返回一个方法用于取消侦听，
+    // 后续可以通过this.$watch的方式进行调用
     Vue.prototype.$watch = function (
       expOrFn,
       cb,
       options
     ) {
       var vm = this;
+      // 如果cb也就是handler是个对象，继续走createWatcher拆解
+      // 个人理解是增加程序健壮性，给用户使用提供多种方式调用使用，如下面这两种方式
+      // eg.this.$watch('name', { handler: (val) => {}, immediate: true })
+      // 或者： this.$watch('name', (val)=> {}, {immediate: true})
+
       if (isPlainObject(cb)) {
         return createWatcher(vm, expOrFn, cb, options)
       }
       options = options || {};
+      // 这个user属性用来标志是否是用户自己主动watch的，
+      // 因为这里watch是和data通用的订阅，所以要给个标志做区分
       options.user = true;
       var watcher = new Watcher(vm, expOrFn, cb, options);
+      // 如果是立即执行
       if (options.immediate) {
         var info = "callback for immediate watcher \"" + (watcher.expression) + "\"";
+        // 这步的目的是将Dep的target置为undefined
         pushTarget();
         invokeWithErrorHandling(cb, vm, [watcher.value], vm, info);
+        // 还原target
         popTarget();
       }
       return function unwatchFn () {
@@ -4977,6 +5011,7 @@
       // a uid
       vm._uid = uid$3++;
 
+      // 用于计算性能
       var startTag, endTag;
       /* istanbul ignore if */
       if (config.performance && mark) {
@@ -4984,16 +5019,19 @@
         endTag = "vue-perf-end:" + (vm._uid);
         mark(startTag);
       }
-
+      
+      // 不对vue实例本身做监听
       // a flag to avoid this being observed
       vm._isVue = true;
       // merge options
+      // TOREAD 暂不关注这里，直接走else
       if (options && options._isComponent) {
         // optimize internal component instantiation
         // since dynamic options merging is pretty slow, and none of the
         // internal component options needs special treatment.
         initInternalComponent(vm, options);
       } else {
+        // 合并options选项
         vm.$options = mergeOptions(
           resolveConstructorOptions(vm.constructor),
           options || {},
@@ -5049,6 +5087,7 @@
 
   function resolveConstructorOptions (Ctor) {
     var options = Ctor.options;
+    //  待确认，有说法是通过Vue.extend创建的子组件会给挂载一个super属性
     if (Ctor.super) {
       var superOptions = resolveConstructorOptions(Ctor.super);
       var cachedSuperOptions = Ctor.superOptions;
@@ -5091,8 +5130,9 @@
     }
     this._init(options);
   }
-
+  // 给Vue.prototype上添加_init方法
   initMixin(Vue);
+  // 给vue 增加state处理
   stateMixin(Vue);
   eventsMixin(Vue);
   lifecycleMixin(Vue);
@@ -7620,7 +7660,9 @@
     }
     var on = vnode.data.on || {};
     var oldOn = oldVnode.data.on || {};
-    target$1 = vnode.elm;
+    // vnode is empty when removing all listeners,
+    // and use old vnode dom element
+    target$1 = vnode.elm || oldVnode.elm;
     normalizeEvents(on);
     updateListeners(on, oldOn, add$1, remove$2, createOnceHandler$1, vnode.context);
     target$1 = undefined;
@@ -7628,7 +7670,8 @@
 
   var events = {
     create: updateDOMListeners,
-    update: updateDOMListeners
+    update: updateDOMListeners,
+    destroy: function (vnode) { return updateDOMListeners(vnode, emptyNode); }
   };
 
   /*  */
@@ -9180,7 +9223,7 @@
       }
     }
     if (staticClass) {
-      el.staticClass = JSON.stringify(staticClass);
+      el.staticClass = JSON.stringify(staticClass.replace(/\s+/g, ' ').trim());
     }
     var classBinding = getBindingAttr(el, 'class', false /* getStatic */);
     if (classBinding) {

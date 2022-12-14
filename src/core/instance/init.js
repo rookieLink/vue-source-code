@@ -18,6 +18,7 @@ export function initMixin (Vue: Class<Component>) {
     // a uid
     vm._uid = uid++
 
+    // 用于计算性能
     let startTag, endTag
     /* istanbul ignore if */
     if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
@@ -25,16 +26,19 @@ export function initMixin (Vue: Class<Component>) {
       endTag = `vue-perf-end:${vm._uid}`
       mark(startTag)
     }
-
+    
+    // 不对vue实例本身做监听
     // a flag to avoid this being observed
     vm._isVue = true
     // merge options
+    // TOREAD 暂不关注这里，直接走else
     if (options && options._isComponent) {
       // optimize internal component instantiation
       // since dynamic options merging is pretty slow, and none of the
       // internal component options needs special treatment.
       initInternalComponent(vm, options)
     } else {
+      // 合并options选项
       vm.$options = mergeOptions(
         resolveConstructorOptions(vm.constructor),
         options || {},
@@ -92,6 +96,7 @@ export function initInternalComponent (vm: Component, options: InternalComponent
 
 export function resolveConstructorOptions (Ctor: Class<Component>) {
   let options = Ctor.options
+  //  待确认，有说法是通过Vue.extend创建的子组件会给挂载一个super属性
   if (Ctor.super) {
     const superOptions = resolveConstructorOptions(Ctor.super)
     const cachedSuperOptions = Ctor.superOptions

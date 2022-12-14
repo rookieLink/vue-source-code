@@ -45,10 +45,13 @@ export function proxy (target: Object, sourceKey: string, key: string) {
   }
   Object.defineProperty(target, key, sharedPropertyDefinition)
 }
-
+// 初始化状态，当component创建时调用此方法
 export function initState (vm: Component) {
+  // 设置当前实例的watcher列表
   vm._watchers = []
+  // 拿取挂载在实例上的属性
   const opts = vm.$options
+  // 依次初始化props、methods、data、computed、watch
   if (opts.props) initProps(vm, opts.props)
   if (opts.methods) initMethods(vm, opts.methods)
   if (opts.data) {
@@ -61,7 +64,7 @@ export function initState (vm: Component) {
     initWatch(vm, opts.watch)
   }
 }
-
+// 初始化props
 function initProps (vm: Component, propsOptions: Object) {
   const propsData = vm.$options.propsData || {}
   const props = vm._props = {}
@@ -110,6 +113,7 @@ function initProps (vm: Component, propsOptions: Object) {
   toggleObserving(true)
 }
 
+// 初始化data
 function initData (vm: Component) {
   let data = vm.$options.data
   data = vm._data = typeof data === 'function'
@@ -309,16 +313,24 @@ function createWatcher (
   handler: any,
   options?: Object
 ) {
+
+  // 下面的操作是保证handler是函数，并且获取自定义options
+  // 如果handler是普通对象，{handler() {}, immediateL true}这种，直接给
+  // options赋值当前对象，给handler赋值handler处理方法
   if (isPlainObject(handler)) {
     options = handler
     handler = handler.handler
   }
+  // 如果handler是一个字符串（代表从vm获取属性作为handler watch: { name: 'nameChange' }）, 
+  // 从vm上取该属性,可以是methods中的属性，也可以是computed的属性
   if (typeof handler === 'string') {
     handler = vm[handler]
   }
+  // 执行初始化Vue时挂载在Vue的$watch，通过vm调用$watch，使得this指向vm自身
   return vm.$watch(expOrFn, handler, options)
 }
 
+// 这是Vue初始化的时候执行的操作
 export function stateMixin (Vue: Class<Component>) {
   // flow somehow has problems with directly declared definition object
   // when using Object.defineProperty, so we have to procedurally build up
@@ -339,28 +351,43 @@ export function stateMixin (Vue: Class<Component>) {
       warn(`$props is readonly.`, this)
     }
   }
+
+  // 在Vue原型上定义两个属性$data、$props，用于获取Vue的data和props
   Object.defineProperty(Vue.prototype, '$data', dataDef)
   Object.defineProperty(Vue.prototype, '$props', propsDef)
 
+  // 给Vue挂载$set、$delete方法，触发响应式数据的行为
   Vue.prototype.$set = set
   Vue.prototype.$delete = del
 
+  // 给Vue挂载$watch,用于监听数据变更,并且返回一个方法用于取消侦听，
+  // 后续可以通过this.$watch的方式进行调用
   Vue.prototype.$watch = function (
     expOrFn: string | Function,
     cb: any,
     options?: Object
   ): Function {
     const vm: Component = this
+    // 如果cb也就是handler是个对象，继续走createWatcher拆解
+    // 个人理解是增加程序健壮性，给用户使用提供多种方式调用使用，如下面这两种方式
+    // eg.this.$watch('name', { handler: (val) => {}, immediate: true })
+    // 或者： this.$watch('name', (val)=> {}, {immediate: true})
+
     if (isPlainObject(cb)) {
       return createWatcher(vm, expOrFn, cb, options)
     }
     options = options || {}
+    // 这个user属性用来标志是否是用户自己主动watch的，
+    // 因为这里watch是和data通用的订阅，所以要给个标志做区分
     options.user = true
     const watcher = new Watcher(vm, expOrFn, cb, options)
+    // 如果是立即执行
     if (options.immediate) {
       const info = `callback for immediate watcher "${watcher.expression}"`
+      // 这步的目的是将Dep的target置为undefined
       pushTarget()
       invokeWithErrorHandling(cb, vm, [watcher.value], vm, info)
+      // 还原target
       popTarget()
     }
     return function unwatchFn () {
