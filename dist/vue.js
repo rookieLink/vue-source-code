@@ -921,8 +921,10 @@
    */
   var Observer = function Observer (value) {
     this.value = value;
+    // 每一个属性都通过闭包的方式拥有自己的dep属性
     this.dep = new Dep();
     this.vmCount = 0;
+    // 给value定义一个__ob__属性，该属性可枚举、配置、可以写
     def(value, '__ob__', this);
     if (Array.isArray(value)) {
       if (hasProto) {
@@ -944,6 +946,7 @@
   Observer.prototype.walk = function walk (obj) {
     var keys = Object.keys(obj);
     for (var i = 0; i < keys.length; i++) {
+      // 给对象的每一个key值创建响应式
       defineReactive$$1(obj, keys[i]);
     }
   };
@@ -987,10 +990,13 @@
    * or the existing observer if the value already has one.
    */
   function observe (value, asRootData) {
+    // 如果不是对象,或者对象是虚拟node,直接返回,
+    // 初始化initState中传进来的_data肯定是对象，这里会直接走下去
     if (!isObject(value) || value instanceof VNode) {
       return
     }
     var ob;
+    // 如果value值有'__ob__'属性， 并且__ob__是Observer对象的实例，则代表是被observe过的，直接把value.__ob__赋值给ob返回
     if (hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
       ob = value.__ob__;
     } else if (
@@ -1020,6 +1026,7 @@
   ) {
     var dep = new Dep();
 
+    // 获取对象属性自身的属性信息
     var property = Object.getOwnPropertyDescriptor(obj, key);
     if (property && property.configurable === false) {
       return
@@ -4459,12 +4466,17 @@
       // ToConfirm 待确认before是从何处来，用来干什么
       this.before = options.before;
     } else {
+      // 应该是处于健壮性考虑，一般都会传options过来
       this.deep = this.user = this.lazy = this.sync = false;
     }
+    // 触发watcher的回调函数
     this.cb = cb;
+    // 用来批处理的id
     this.id = ++uid$2; // uid for batching
     this.active = true;
+    // lazy watcher 待确认
     this.dirty = this.lazy; // for lazy watchers
+    // 哪些dep的变动会触发当前watch
     this.deps = [];
     this.newDeps = [];
     this.depIds = new _Set();

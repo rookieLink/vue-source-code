@@ -70,12 +70,17 @@ export default class Watcher {
       // ToConfirm 待确认before是从何处来，用来干什么
       this.before = options.before
     } else {
+      // 应该是处于健壮性考虑，一般都会传options过来
       this.deep = this.user = this.lazy = this.sync = false
     }
+    // 触发watcher的回调函数
     this.cb = cb
+    // 用来批处理的id
     this.id = ++uid // uid for batching
     this.active = true
+    // lazy watcher 待确认
     this.dirty = this.lazy // for lazy watchers
+    // 哪些dep的变动会触发当前watch
     this.deps = []
     this.newDeps = []
     this.depIds = new Set()

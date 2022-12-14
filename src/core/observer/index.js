@@ -41,8 +41,10 @@ export class Observer {
 
   constructor (value: any) {
     this.value = value
+    // 每一个属性都通过闭包的方式拥有自己的dep属性
     this.dep = new Dep()
     this.vmCount = 0
+    // 给value定义一个__ob__属性，该属性可枚举、配置、可以写
     def(value, '__ob__', this)
     if (Array.isArray(value)) {
       if (hasProto) {
@@ -64,6 +66,7 @@ export class Observer {
   walk (obj: Object) {
     const keys = Object.keys(obj)
     for (let i = 0; i < keys.length; i++) {
+      // 给对象的每一个key值创建响应式
       defineReactive(obj, keys[i])
     }
   }
@@ -108,10 +111,13 @@ function copyAugment (target: Object, src: Object, keys: Array<string>) {
  * or the existing observer if the value already has one.
  */
 export function observe (value: any, asRootData: ?boolean): Observer | void {
+  // 如果不是对象,或者对象是虚拟node,直接返回,
+  // 初始化initState中传进来的_data肯定是对象，这里会直接走下去
   if (!isObject(value) || value instanceof VNode) {
     return
   }
   let ob: Observer | void
+  // 如果value值有'__ob__'属性， 并且__ob__是Observer对象的实例，则代表是被observe过的，直接把value.__ob__赋值给ob返回
   if (hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
     ob = value.__ob__
   } else if (
@@ -141,6 +147,7 @@ export function defineReactive (
 ) {
   const dep = new Dep()
 
+  // 获取对象属性自身的属性信息
   const property = Object.getOwnPropertyDescriptor(obj, key)
   if (property && property.configurable === false) {
     return
