@@ -141,8 +141,10 @@
   /**
    * Remove an item from an array.
    */
+  // 从数组中移除某一项
   function remove (arr, item) {
     if (arr.length) {
+      // 获取item在arr中的位置，然后splice移除，返回当前移除项
       var index = arr.indexOf(item);
       if (index > -1) {
         return arr.splice(index, 1)
@@ -713,16 +715,21 @@
    * A dep is an observable that can have multiple
    * directives subscribing to it.
    */
+  // 创建订阅
   var Dep = function Dep () {
+    // 初始化id和subs
     this.id = uid++;
     this.subs = [];
   };
 
+  // 添加到订阅
   Dep.prototype.addSub = function addSub (sub) {
     this.subs.push(sub);
   };
 
+  // 移除订阅
   Dep.prototype.removeSub = function removeSub (sub) {
+    // 将watcher从subs中移除
     remove(this.subs, sub);
   };
 
@@ -732,6 +739,7 @@
     }
   };
 
+  // 通知watcher列表更新
   Dep.prototype.notify = function notify () {
     // stabilize the subscriber list first
     var subs = this.subs.slice();
@@ -739,8 +747,10 @@
       // subs aren't sorted in scheduler if not running async
       // we need to sort them now to make sure they fire in correct
       // order
+      // 如果subs不是同步执行的话，就不是按顺序的，现在进行排序然后按照正确的顺序通知watcher更新
       subs.sort(function (a, b) { return a.id - b.id; });
     }
+    // 遍历wather进行更新
     for (var i = 0, l = subs.length; i < l; i++) {
       subs[i].update();
     }
@@ -749,6 +759,8 @@
   // The current target watcher being evaluated.
   // This is globally unique because only one watcher
   // can be evaluated at a time.
+  // 计算watcher的时候，将watcher挂载到Dep类上，
+  // watcher和dep是多对多的关系,需要让其互相记住
   Dep.target = null;
   var targetStack = [];
 
@@ -858,8 +870,9 @@
    */
 
   var arrayProto = Array.prototype;
+  // 基于属性的原型创建arrayMethods对象，将原型的属性挂到arrayMethods__proto__上去
   var arrayMethods = Object.create(arrayProto);
-
+  // 定义将要重写的方法
   var methodsToPatch = [
     'push',
     'pop',
@@ -873,34 +886,46 @@
   /**
    * Intercept mutating methods and emit events
    */
+  // 重写数组方法
   methodsToPatch.forEach(function (method) {
     // cache original method
+    // 缓存原数组方法
     var original = arrayProto[method];
+    // 给新的原型方法定义类型, 将所有传入的参数赋值给args, 这里是ES6的函数rest特性
     def(arrayMethods, method, function mutator () {
       var args = [], len = arguments.length;
       while ( len-- ) args[ len ] = arguments[ len ];
 
+      // 首先直接调用数组的方法
       var result = original.apply(this, args);
+      // 接下来的行为是为了触发数组的响应式
+      // 取到自身的监测属性,用于触发后续的notify
       var ob = this.__ob__;
+      // 定义变量,用于保存数组新增选项
       var inserted;
       switch (method) {
+        // 如果是push或者unshift方法,则inserted属性就是传入的参数
         case 'push':
         case 'unshift':
           inserted = args;
           break
+        // 如果是splice方法,新增属性可能是传入参数的第3项
         case 'splice':
           inserted = args.slice(2);
           break
       }
       if (inserted) { ob.observeArray(inserted); }
       // notify change
+      // 通知订阅更新
       ob.dep.notify();
+      // 返回正常数据返回
       return result
     });
   });
 
   /*  */
 
+  // 获取处理过后的原型,只获取自身属性,否则会把原型上的也拿到
   var arrayKeys = Object.getOwnPropertyNames(arrayMethods);
 
   /**
@@ -921,17 +946,22 @@
    */
   var Observer = function Observer (value) {
     this.value = value;
-    // 每一个属性都通过闭包的方式拥有自己的dep属性
+    // 收集依赖，给每个属性收集依赖，用于对对象的依赖收集
     this.dep = new Dep();
+    // 待确认是用来干嘛的
     this.vmCount = 0;
-    // 给value定义一个__ob__属性，该属性可枚举、配置、可以写
+    // 给value定义一个__ob__属性，该属性可枚举、配置、可以写，上面啥都有，value、dep、vmCount都挂在上面了
     def(value, '__ob__', this);
+    // value是数组要走数组遍历
     if (Array.isArray(value)) {
+      // 是否可以使用__proto__属性，因为这不是官方的规范，浏览器表现可能不一致
+      // 重新数组属性的一些方法
       if (hasProto) {
         protoAugment(value, arrayMethods);
       } else {
         copyAugment(value, arrayMethods, arrayKeys);
       }
+      // observe数组
       this.observeArray(value);
     } else {
       this.walk(value);
@@ -943,8 +973,10 @@
    * getter/setters. This method should only be called when
    * value type is Object.
    */
+  // 开始定义对象的响应式
   Observer.prototype.walk = function walk (obj) {
     var keys = Object.keys(obj);
+    // 遍历对象属性
     for (var i = 0; i < keys.length; i++) {
       // 给对象的每一个key值创建响应式
       defineReactive$$1(obj, keys[i]);
@@ -954,6 +986,7 @@
   /**
    * Observe a list of Array items.
    */
+  // 循环遍历数组进行数组中对象的响应式实现
   Observer.prototype.observeArray = function observeArray (items) {
     for (var i = 0, l = items.length; i < l; i++) {
       observe(items[i]);
@@ -967,6 +1000,7 @@
    * the prototype chain using __proto__
    */
   function protoAugment (target, src) {
+    // 覆盖掉数组原生的__proto__属性
     /* eslint-disable no-proto */
     target.__proto__ = src;
     /* eslint-enable no-proto */
@@ -977,7 +1011,9 @@
    * hidden properties.
    */
   /* istanbul ignore next */
+  // 没有__proto__的情况下，直接把重写的数组方法挂载到数组上去
   function copyAugment (target, src, keys) {
+    // 遍历属性的情况
     for (var i = 0, l = keys.length; i < l; i++) {
       var key = keys[i];
       def(target, key, src[key]);
@@ -989,6 +1025,7 @@
    * returns the new observer if successfully observed,
    * or the existing observer if the value already has one.
    */
+  // ToRead asRootData是干嘛用的目前不知道，待确认
   function observe (value, asRootData) {
     // 如果不是对象,或者对象是虚拟node,直接返回,
     // 初始化initState中传进来的_data肯定是对象，这里会直接走下去
@@ -1008,6 +1045,7 @@
     ) {
       ob = new Observer(value);
     }
+    // 这一步是asRootData情况计数，待确认这个变量的意义
     if (asRootData && ob) {
       ob.vmCount++;
     }
@@ -1017,6 +1055,7 @@
   /**
    * Define a reactive property on an Object.
    */
+  // 定义响应式
   function defineReactive$$1 (
     obj,
     key,
@@ -1024,27 +1063,39 @@
     customSetter,
     shallow
   ) {
+    // 用于对具体属性的watcher收集
     var dep = new Dep();
 
     // 获取对象属性自身的属性信息
     var property = Object.getOwnPropertyDescriptor(obj, key);
+    // 如果对象属性自身是不可配置的,直接返回
     if (property && property.configurable === false) {
       return
     }
 
     // cater for pre-defined getter/setters
+    // 获取对象原本的get set
     var getter = property && property.get;
     var setter = property && property.set;
+    // 如果没有getter 或者有setter，这里应该是 防止用户本意是只设置getter,让数据为只读属性,
+    // 如果有set,或者既没有set也没有get的时候,就继续自定义set、get
+    // 并且有两个参数（代表没有传入val值），则给val赋值值
     if ((!getter || setter) && arguments.length === 2) {
       val = obj[key];
     }
 
+    // 如果是深度监听，则进行observe监听
+    // 这个也是通过闭包保存一下
     var childOb = !shallow && observe(val);
+    // 定义响应式数据
     Object.defineProperty(obj, key, {
       enumerable: true,
       configurable: true,
+      // 获取数据的行为
       get: function reactiveGetter () {
+        // 如果原本有getter，则从getter中获取， 没有则使用val（val处于闭包中，不会进行销毁）
         var value = getter ? getter.call(obj) : val;
+        //ToRead待确认执行时机 如果Dep上有target，则触发依赖收集，首次进来不会触发, 待确认啥时候开始进行依赖收集
         if (Dep.target) {
           dep.depend();
           if (childOb) {
@@ -1057,23 +1108,30 @@
         return value
       },
       set: function reactiveSetter (newVal) {
+        // 数据变更行为
         var value = getter ? getter.call(obj) : val;
         /* eslint-disable no-self-compare */
+        // 如果新赋的值没有变更，||后面是为了判断不是NaN的场景，因为NaN和自身也不相等
         if (newVal === value || (newVal !== newVal && value !== value)) {
           return
         }
         /* eslint-enable no-self-compare */
+        // 如果环境不是生产环境,并且自定义setter,执行setter行为(目前不清楚是什么情况下用到)
         if (customSetter) {
           customSetter();
         }
         // #7981: for accessor properties without setter
+        // 如果有getter没setter,则直接返回, 这里待确认
         if (getter && !setter) { return }
+        // 如果有setter则调用setter,否则直接复制给val,
         if (setter) {
           setter.call(obj, newVal);
         } else {
           val = newVal;
         }
+        // 新设置的值进行进行observe响应式化
         childOb = !shallow && observe(newVal);
+        // 通知更新
         dep.notify();
       }
     });
@@ -1084,21 +1142,29 @@
    * triggers change notification if the property doesn't
    * already exist.
    */
+  // 给一个对象添加新属性,并触发变更
   function set (target, key, val) {
+    // 如果target是undefined或者是基本类型的话,给出警告
     if (isUndef(target) || isPrimitive(target)
     ) {
       warn(("Cannot set reactive property on undefined, null, or primitive value: " + ((target))));
     }
+    // 如果target是数组 并且key值是合法的索引
     if (Array.isArray(target) && isValidArrayIndex(key)) {
+      // 保证当前数组的长度为当前长度或者key的最大值
       target.length = Math.max(target.length, key);
+      // 调用target的splice(这个方法是重写过的),会对这个添加进来的值进行observe,并且触发变更
       target.splice(key, 1, val);
       return val
     }
+    // 如果key已经在target中了，并且不是Object原型上的值，也就是target自身的值
     if (key in target && !(key in Object.prototype)) {
+      // 直接给target的值进行赋值，这里会触发set方法，如果是对象的话，会进行递归observe的，并触发更新操作
       target[key] = val;
       return val
     }
     var ob = (target).__ob__;
+    // 不能在运行时给Vue实例或者根节点的$data上设置响应式属性，应该提前在data选项上设置
     if (target._isVue || (ob && ob.vmCount)) {
       warn(
         'Avoid adding reactive properties to a Vue instance or its root $data ' +
@@ -1106,11 +1172,16 @@
       );
       return val
     }
+    // 如果target上边没有__ob__,说明target不是observe对象，直接赋值上去不管他了
     if (!ob) {
       target[key] = val;
       return val
     }
+    // 在对象上定义响应式
     defineReactive$$1(ob.value, key, val);
+    // 通知变更， 这里有疑惑，当前属性是添加进来的新属性，为啥要通知变更呢？
+    // 可能是之前订阅了没有的属性，这个也加入了dep中？
+    console.log(ob.dep);
     ob.dep.notify();
     return val
   }
@@ -1841,6 +1912,7 @@
   /*  */
 
   function handleError (err, vm, info) {
+    // 当数据报错的时候放弃追踪，防止无限渲染
     // Deactivate deps tracking while processing error handler to avoid possible infinite rendering.
     // See: https://github.com/vuejs/vuex/issues/1505
     pushTarget();
@@ -4734,9 +4806,11 @@
   // 初始化data
   function initData (vm) {
     var data = vm.$options.data;
+    // 如果data是函数，执行getData，如果是对象则直接返回
     data = vm._data = typeof data === 'function'
       ? getData(data, vm)
       : data || {};
+      // 如果data不是普通对象
     if (!isPlainObject(data)) {
       data = {};
       warn(
@@ -4753,6 +4827,7 @@
     while (i--) {
       var key = keys[i];
       {
+        // 如果data中的属性已经在methods上定义过,进行告警
         if (methods && hasOwn(methods, key)) {
           warn(
             ("Method \"" + key + "\" has already been defined as a data property."),
@@ -4760,6 +4835,7 @@
           );
         }
       }
+        // 如果data中的属性已经在props上定义过,进行告警
       if (props && hasOwn(props, key)) {
         warn(
           "The data property \"" + key + "\" is already declared as a prop. " +
@@ -4767,15 +4843,27 @@
           vm
         );
       } else if (!isReserved(key)) {
+        // 做一层数据代理，把对vm[key]的访问，代理到vm._data[key]上，便于访问
         proxy(vm, "_data", key);
       }
     }
     // observe data
+    // 开始observe data， 是否是rootData
     observe(data, true /* asRootData */);
   }
 
+  // getData函数
   function getData (data, vm) {
     // #7573 disable dep collection when invoking data getters
+    // ，触发data的getters的时候，不进行依赖收集
+    // ToRead 这里具体是为了解决啥问题场景不知道，获取data的时候应该也不会触发依赖收集啊
+    // pushTarget的目的是为了响应式数据获取的时候，Dep.target为undefined
+    /**
+     * 这里还不是很明白，待确认
+     * 修复的是因为收集子组件props作为依赖项在他自己的计算更新期间，造成父组件不必要的更新
+     * This fixes the parent being updated more than necessary due to collecting child props
+     *  as dependencies during its own update computation.
+     * */ 
     pushTarget();
     try {
       return data.call(vm, vm)

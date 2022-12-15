@@ -130,8 +130,10 @@ export const isReservedAttribute = makeMap('key,ref,slot,slot-scope,is')
 /**
  * Remove an item from an array.
  */
+// 从数组中移除某一项
 export function remove (arr: Array<any>, item: any): Array<any> | void {
   if (arr.length) {
+    // 获取item在arr中的位置，然后splice移除，返回当前移除项
     const index = arr.indexOf(item)
     if (index > -1) {
       return arr.splice(index, 1)

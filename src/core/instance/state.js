@@ -116,9 +116,11 @@ function initProps (vm: Component, propsOptions: Object) {
 // 初始化data
 function initData (vm: Component) {
   let data = vm.$options.data
+  // 如果data是函数，执行getData，如果是对象则直接返回
   data = vm._data = typeof data === 'function'
     ? getData(data, vm)
     : data || {}
+    // 如果data不是普通对象
   if (!isPlainObject(data)) {
     data = {}
     process.env.NODE_ENV !== 'production' && warn(
@@ -135,6 +137,7 @@ function initData (vm: Component) {
   while (i--) {
     const key = keys[i]
     if (process.env.NODE_ENV !== 'production') {
+      // 如果data中的属性已经在methods上定义过,进行告警
       if (methods && hasOwn(methods, key)) {
         warn(
           `Method "${key}" has already been defined as a data property.`,
@@ -142,6 +145,7 @@ function initData (vm: Component) {
         )
       }
     }
+      // 如果data中的属性已经在props上定义过,进行告警
     if (props && hasOwn(props, key)) {
       process.env.NODE_ENV !== 'production' && warn(
         `The data property "${key}" is already declared as a prop. ` +
@@ -149,15 +153,27 @@ function initData (vm: Component) {
         vm
       )
     } else if (!isReserved(key)) {
+      // 做一层数据代理，把对vm[key]的访问，代理到vm._data[key]上，便于访问
       proxy(vm, `_data`, key)
     }
   }
   // observe data
+  // 开始observe data， 是否是rootData
   observe(data, true /* asRootData */)
 }
 
+// getData函数
 export function getData (data: Function, vm: Component): any {
   // #7573 disable dep collection when invoking data getters
+  // ，触发data的getters的时候，不进行依赖收集
+  // ToRead 这里具体是为了解决啥问题场景不知道，获取data的时候应该也不会触发依赖收集啊
+  // pushTarget的目的是为了响应式数据获取的时候，Dep.target为undefined
+  /**
+   * 这里还不是很明白，待确认
+   * 修复的是因为收集子组件props作为依赖项在他自己的计算更新期间，造成父组件不必要的更新
+   * This fixes the parent being updated more than necessary due to collecting child props
+   *  as dependencies during its own update computation.
+   * */ 
   pushTarget()
   try {
     return data.call(vm, vm)

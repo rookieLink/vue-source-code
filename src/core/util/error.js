@@ -7,6 +7,7 @@ import { isPromise } from 'shared/util'
 import { pushTarget, popTarget } from '../observer/dep'
 
 export function handleError (err: Error, vm: any, info: string) {
+  // 当数据报错的时候放弃追踪，防止无限渲染
   // Deactivate deps tracking while processing error handler to avoid possible infinite rendering.
   // See: https://github.com/vuejs/vuex/issues/1505
   pushTarget()
